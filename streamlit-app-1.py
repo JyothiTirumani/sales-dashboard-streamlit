@@ -1,66 +1,55 @@
-# app.py
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
-import numpy as np
 
-st.title("📊 Sales Data Dashboard")
-
-# Upload or load default CSV
-uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-else:
-    df = pd.read_csv("sample_sales_data.csv")  # Replace with your local file path
-st.write("📋 Column names:", df.columns.tolist())
-# Preprocess
+# Load your dataset (replace with your actual data path)
+df = pd.read_csv("sample_sales_data.csv")
 df['Date'] = pd.to_datetime(df['Date'])
 df['Revenue'] = df['Quantity'] * df['UnitPrice']
 
-df['Month'] = df['Date'].dt.to_period('M').astype(str)
+st.set_page_config(page_title="📊 Sales Dashboard", layout="wide")
+st.title("📈 Interactive Sales Dashboard")
 
-# Filters
-region = st.selectbox("Select Region", ["All"] + sorted(df['Region'].unique().tolist()))
-product = st.selectbox("Select Product", ["All"] + sorted(df['Product'].unique().tolist()))
+# Sidebar Controls
+st.sidebar.title("🎛️ Dashboard Controls")
 
-filtered_df = df.copy()
-if region != "All":
-    filtered_df = filtered_df[filtered_df['Region'] == region]
-if product != "All":
-    filtered_df = filtered_df[filtered_df['Product'] == product]
+# Date Range Filter
+start_date, end_date = st.sidebar.date_input(
+    "📅 Select Date Range:",
+    [df['Date'].min(), df['Date'].max()]
+)
+df_filtered = df[(df['Date'] >= pd.to_datetime(start_date)) & (df['Date'] <= pd.to_datetime(end_date))]
 
-st.write("Filtered Data", filtered_df.head())
+# Chart Selector
+chart_type = st.sidebar.selectbox(
+    "📉 Select Chart Type:",
+    ["Revenue Over Time", "Units Sold by Product", "Revenue by Category"]
+)
 
-# Line plot of revenue over time
-monthly_revenue = filtered_df.groupby('Month')['Revenue'].sum().reset_index()
+# Display Chart
+st.subheader(f"Chart: {chart_type}")
+if chart_type == "Revenue Over Time":
+    chart_data = df_filtered.groupby('Date')["Revenue"].sum()
+    st.line_chart(chart_data)
 
-fig, ax = plt.subplots(figsize=(10, 4))
-sns.lineplot(data=monthly_revenue, x='Month', y='Revenue', marker='o', ax=ax)
-plt.xticks(rotation=45)
-plt.title("Monthly Revenue")
-st.pyplot(fig)
+elif chart_type == "Units Sold by Product":
+    chart_data = df_filtered.groupby("Product")["Units_Sold"].sum().sort_values(ascending=False)
+    st.bar_chart(chart_data)
 
-# Forecasting with Linear Regression
-filtered_df['Day'] = filtered_df['Date'].map(pd.Timestamp.toordinal)
-X = filtered_df[['Day']]
-y = filtered_df['Revenue']
-if len(X) > 5:
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    st.write(f"📉 RMSE: {rmse:.2f}")
+elif chart_type == "Revenue by Category":
+    chart_data = df_filtered.groupby("Category")["Revenue"].sum().sort_values(ascending=False)
+    st.bar_chart(chart_data)
 
-    fig2, ax2 = plt.subplots(figsize=(8, 4))
-    ax2.scatter(X_test, y_test, color='blue', label='Actual')
-    ax2.plot(X_test, y_pred, color='red', label='Predicted')
-    ax2.set_title("Forecasted Revenue (Test Set)")
-    ax2.legend()
-    st.pyplot(fig2)
-else:
-    st.warning("Not enough data to train a model. Try selecting a different filter.")
+# Download Button
+st.markdown("---")
+st.subheader("💾 Download Filtered Data")
+st.download_button(
+    label="Download CSV",
+    data=df_filtered.to_csv(index=False).encode('utf-8'),
+    file_name="filtered_sales_data.csv",
+    mime="text/csv"
+)
+
+# Footer
+st.markdown("---")
+st.caption("Built with ❤️ using Streamlit")
