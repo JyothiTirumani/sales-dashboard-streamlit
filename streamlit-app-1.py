@@ -33,7 +33,7 @@ if chart_type == "Revenue Over Time":
     st.line_chart(chart_data)
 
 elif chart_type == "Units Sold by Product":
-    chart_data = df_filtered.groupby("Product")["Units_Sold"].sum().sort_values(ascending=False)
+    chart_data = df_filtered.groupby("Product")["Quantity"].sum().sort_values(ascending=False)
     st.bar_chart(chart_data)
 
 elif chart_type == "Revenue by Category":
